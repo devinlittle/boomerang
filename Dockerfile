@@ -27,7 +27,7 @@ RUN adduser \
     --uid "${UID}" \
     appuser
 
-COPY --from=build /bin/$APP_NAME /bin/
+COPY --from=build /bin/boomerang /bin/
 
 RUN mkdir -p /app/logs
 
