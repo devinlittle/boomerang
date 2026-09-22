@@ -1,0 +1,13 @@
+# Build Artifacts
+/target/
+
+# OS Specific
+.DS_STORE
+
+# Rust Stuff
+**/*.rs.bk
+
+# Editor Specific
+*.swp
+*.swo
+*~
