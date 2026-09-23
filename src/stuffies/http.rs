@@ -1,5 +1,7 @@
 use std::{collections::HashMap, net::SocketAddr};
 
+use crate::CONFIG;
+
 #[derive(Debug)]
 pub enum ParseError {
     Empty,
@@ -16,6 +18,8 @@ pub struct Request {
     ip: String,
     user_agent: String,
 }
+
+const REVERSE_PROXY_HEADERS: [&str; 3] = ["X-Forwarded-For", "X-Real-Ip", "X-Real-IP"];
 
 pub fn parse_req(buf: &[u8], ip: SocketAddr) -> Result<Request, ParseError> {
     let raw_data = std::str::from_utf8(buf).map_err(|_| ParseError::InvalidUtf8)?;
@@ -34,20 +38,21 @@ pub fn parse_req(buf: &[u8], ip: SocketAddr) -> Result<Request, ParseError> {
         .ok_or(ParseError::MalformedRequestLine)?
         .to_string();
 
-    let user_agent = find_user_agent(raw_data);
+    let user_agent = find_first_header(raw_data, &["User-Agent"])
+        .unwrap_or("User-Agent could not be found")
+        .to_string();
 
-    // INFO:: put the line of code below when stun is implimented
-    //
-    //let ip = if CONFIG.stun_server_address.is_none() || !is_private_ip(ip) {
-
-    let ip = if !is_private_ip(ip) {
-        ip.ip().to_string()
+    let ip = if CONFIG.reverse_proxy {
+        match find_first_header(raw_data, &REVERSE_PROXY_HEADERS) {
+            Some(ip) => ip
+                .rfind(": ")
+                .map(|x| &ip[x + 2..])
+                .unwrap_or("ip not found?")
+                .to_string(),
+            None => "ip not found?".to_string(),
+        }
     } else {
-        // TODO: impliment stun ip lookup here
-        format!(
-            "PRIVATE: {}\nPUBLIC: WILL IMPLIMENT FINDING PUBLIC IP LATER",
-            ip.ip()
-        )
+        ip.ip().to_string()
     };
 
     Ok(Request {
@@ -59,45 +64,12 @@ pub fn parse_req(buf: &[u8], ip: SocketAddr) -> Result<Request, ParseError> {
     })
 }
 
-fn find_user_agent(raw_request_data: &str) -> String {
-    let split = raw_request_data.split("\r\n");
-    for i in split.enumerate() {
-        if i.1.contains("User-Agent") {
-            return i.1.to_string();
-        }
-    }
-    "User-Agent not found".to_string()
-}
-
-fn is_private_ip(ip: SocketAddr) -> bool {
-    if ip.is_ipv6() {
-        return false;
-    }
-
-    let ipv4 = match ip.ip() {
-        std::net::IpAddr::V4(ipv4) => ipv4,
-        std::net::IpAddr::V6(_) => unreachable!(),
-    }
-    .octets();
-
-    dbg!("{:?}", ipv4);
-
-    // 10.xxx.xxx.xxx
-    if ipv4[0] == 10 {
-        return true;
-    }
-
-    // 192.168.xxx.xxx
-    if ipv4[0] == 192 && ipv4[1] == 168 {
-        return true;
-    }
-
-    // 172.16.000.000 -> 172.31.255.255
-    if ipv4[0] == 172 && ipv4[1] >= 16 && ipv4[1] <= 31 {
-        return true;
-    }
-
-    false
+fn find_first_header<'a>(raw_request_data: &'a str, headers: &[&str]) -> Option<&'a str> {
+    raw_request_data.split("\r\n").find(|&header| {
+        headers
+            .iter()
+            .any(|&h| header.starts_with(h) || header.eq_ignore_ascii_case(h))
+    })
 }
 
 pub struct Response {
@@ -142,7 +114,7 @@ impl Response {
 }
 
 pub fn send_response(request: Request) -> Response {
-    let data = format!("{}\n\n{}", request.ip, request.user_agent).into_bytes();
+    let data = format!("{}\n\n{}\n", request.ip, request.user_agent).into_bytes();
     let data_length = &data.len().to_string();
 
     let mut headers: HashMap<String, String> = HashMap::new();

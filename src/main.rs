@@ -9,16 +9,13 @@ use anyhow::Error;
 use stuffies::http::*;
 
 pub struct Config {
-    pub stun_server_address: Option<String>,
-    pub stun_server_creds: Option<String>,
+    pub reverse_proxy: bool,
 }
 
 pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
     dotenvy::dotenv().ok();
     Config {
-        stun_server_address: dotenvy::var("STUN_ADDR").ok(),
-        // Credentials are USERNAME:PASSWORD
-        stun_server_creds: dotenvy::var("STUN_CREDS").ok(),
+        reverse_proxy: dotenvy::var("USE_REVERSE_PROXY").ok().is_some(),
     }
 });
 
