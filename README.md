@@ -2,7 +2,7 @@
 
 This project provides [an http](https://www.reddit.com/r/webdev/comments/1i6qzgj/does_anyone_else_say_a_http/) server which will provide back an your Public IP and a [User-Agent](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/User-Agent).
 
-## Example Output: 
+## Example Output:
 ```bash
 $ curl https://ip.devinlittle.net
 24.218.230.104

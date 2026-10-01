@@ -114,17 +114,34 @@ impl Response {
 }
 
 pub fn send_response(request: Request) -> Response {
-    let data = format!("{}\n\n{}\n", request.ip, request.user_agent).into_bytes();
-    let data_length = &data.len().to_string();
+    // so if they do a /ip or ?ip or &ip or #ip those all work
+    if request.path.contains("ip") {
+        let data = format!("{}\n", request.ip).into_bytes();
+        let data_length = &data.len().to_string();
 
-    let mut headers: HashMap<String, String> = HashMap::new();
-    headers.insert("Content-Length".to_string(), data_length.clone());
+        let mut headers: HashMap<String, String> = HashMap::new();
+        headers.insert("Content-Length".to_string(), data_length.clone());
 
-    Response {
-        version: request.version,
-        status_code: 200,
-        reason: "OK".to_string(),
-        headers,
-        body: data,
+        Response {
+            version: request.version,
+            status_code: 200,
+            reason: "OK".to_string(),
+            headers,
+            body: data,
+        }
+    } else {
+        let data = format!("{}\n\n{}\n", request.ip, request.user_agent).into_bytes();
+        let data_length = &data.len().to_string();
+
+        let mut headers: HashMap<String, String> = HashMap::new();
+        headers.insert("Content-Length".to_string(), data_length.clone());
+
+        Response {
+            version: request.version,
+            status_code: 200,
+            reason: "OK".to_string(),
+            headers,
+            body: data,
+        }
     }
 }
