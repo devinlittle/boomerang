@@ -12,7 +12,6 @@ pub enum ParseError {
 pub struct Request {
     #[allow(dead_code)]
     method: String,
-    #[allow(dead_code)]
     path: String,
     version: String,
     ip: String,
@@ -24,6 +23,7 @@ const REVERSE_PROXY_HEADERS: [&str; 3] = ["X-Forwarded-For", "X-Real-Ip", "X-Rea
 pub fn parse_req(buf: &[u8], ip: SocketAddr) -> Result<Request, ParseError> {
     let raw_data = std::str::from_utf8(buf).map_err(|_| ParseError::InvalidUtf8)?;
     let req_line = raw_data.split("\r\n").next().ok_or(ParseError::Empty)?;
+
     let mut parts = req_line.splitn(3, " ");
     let method = parts
         .next()
@@ -109,18 +109,19 @@ impl Response {
         )
         .into_bytes();
         response.extend_from_slice(&self.body);
+
         response
     }
 }
 
 pub fn send_response(request: Request) -> Response {
     // so if they do a /ip or ?ip or &ip or #ip those all work
-    if request.path.contains("ip") {
+    if request.path.to_lowercase().contains("ip") {
         let data = format!("{}\n", request.ip).into_bytes();
-        let data_length = &data.len().to_string();
+        let data_length = data.len().to_string();
 
         let mut headers: HashMap<String, String> = HashMap::new();
-        headers.insert("Content-Length".to_string(), data_length.clone());
+        headers.insert("Content-Length".to_string(), data_length);
 
         Response {
             version: request.version,
@@ -131,10 +132,10 @@ pub fn send_response(request: Request) -> Response {
         }
     } else {
         let data = format!("{}\n\n{}\n", request.ip, request.user_agent).into_bytes();
-        let data_length = &data.len().to_string();
+        let data_length = data.len().to_string();
 
         let mut headers: HashMap<String, String> = HashMap::new();
-        headers.insert("Content-Length".to_string(), data_length.clone());
+        headers.insert("Content-Length".to_string(), data_length);
 
         Response {
             version: request.version,

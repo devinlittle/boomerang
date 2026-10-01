@@ -4,8 +4,8 @@ use std::{
     sync::LazyLock,
 };
 
-mod stuffies;
 use anyhow::Error;
+mod stuffies;
 use stuffies::http::*;
 
 pub struct Config {
